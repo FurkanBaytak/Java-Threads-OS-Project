@@ -27,19 +27,28 @@ The project includes the following main components:
 - **Guest**: Represents a guest at the party, consuming items from the trays.
 - **Waiter**: Responsible for refilling the trays when items are nearly exhausted.
 
+The project files are organized as follows:
+
+  /Java-Party-Simulation
+  │
+  ├── Tray.java
+  ├── Guest.java
+  ├── Waiter.java
+  └── Main.java
+
 ## Setup
 
 To run this project, follow these steps:
 
 1. **Clone the repository**:
     ```bash
-    git clone https://github.com/FurkanBaytak/Java-Party-Simulation.git
-    cd Java-Party-Simulation
+    git clone https://github.com/FurkanBaytak/Java-Threads-OS-Project.git
+    cd Java-Threads-OS-Project/Java-Party-Simulation
     ```
 
 2. **Compile the project**:
     ```bash
-    javac Main.java
+    javac *.java
     ```
 
 3. **Run the project**:
@@ -66,7 +75,6 @@ The `Tray` class represents a tray with a specific capacity and a maximum number
         this.name = name;
         this.capacity = capacity;
         this.maxTotalItems = maxTotalItems;
-        this.currentItems = maxTotalItems;
     }
     ```
 
@@ -74,9 +82,10 @@ The `Tray` class represents a tray with a specific capacity and a maximum number
 
     ```java
     public synchronized boolean takeItem(String guestName) {
-        if (currentItems > 0) {
-            currentItems--;
-            System.out.println(guestName + " took an item from " + name + ". Items left: " + currentItems);
+        if (this.itemCount > 0 && this.totalServedItems < this.maxTotalItems) {
+            this.itemCount--;
+            this.totalServedItems++;
+            System.out.println(guestName + " took 1 " + this.name + ". Items left on tray: " + this.itemCount);
             return true;
         }
         return false;
@@ -87,10 +96,9 @@ The `Tray` class represents a tray with a specific capacity and a maximum number
 
     ```java
     public synchronized void refillItem() {
-        if (currentItems < capacity) {
-            int refillAmount = Math.min(capacity - currentItems, maxTotalItems - currentItems);
-            currentItems += refillAmount;
-            System.out.println("Waiter refilled " + name + ". Items now: " + currentItems);
+        if (this.itemCount < this.capacity && this.totalServedItems < this.maxTotalItems) {
+            this.itemCount = Math.min(this.capacity, this.maxTotalItems - this.totalServedItems);
+            System.out.println("Waiter refilled the " + this.name + ". Items now: " + this.itemCount);
         }
     }
     ```
@@ -99,7 +107,7 @@ The `Tray` class represents a tray with a specific capacity and a maximum number
 
     ```java
     public synchronized int getRemainingItems() {
-        return currentItems;
+        return maxTotalItems - totalServedItems;
     }
     ```
 
@@ -107,7 +115,7 @@ The `Tray` class represents a tray with a specific capacity and a maximum number
 
     ```java
     public synchronized boolean hasItemsLeft() {
-        return currentItems > 0;
+        return totalServedItems < maxTotalItems;
     }
     ```
 
@@ -121,7 +129,7 @@ The `Guest` class represents a guest at the party. Each guest has limits on the 
 
     ```java
     public Guest(String name, Tray borekTray, Tray cakeTray, Tray drinkTray) {
-        this.name = name;
+        super(name);
         this.borekTray = borekTray;
         this.cakeTray = cakeTray;
         this.drinkTray = drinkTray;
@@ -133,18 +141,19 @@ The `Guest` class represents a guest at the party. Each guest has limits on the 
     ```java
     @Override
     public void run() {
-        while (borekTray.hasItemsLeft() || cakeTray.hasItemsLeft() || drinkTray.hasItemsLeft()) {
-            if (borekTray.takeItem(name)) sleepRandom();
-            if (cakeTray.takeItem(name)) sleepRandom();
-            if (drinkTray.takeItem(name)) sleepRandom();
-        }
-    }
-
-    private void sleepRandom() {
         try {
-            Thread.sleep((long) (Math.random() * 1000));
+            // Guest continues to take items while there are items left on any tray and the limits have not been reached
+            while ((borekTray.hasItemsLeft() || cakeTray.hasItemsLeft() || drinkTray.hasItemsLeft()) &&
+                    (borekTaken < borekLimit || cakeTaken < cakeLimit || drinkTaken < drinkLimit)) {
+                // Attempt to take items from each tray based on limits
+                // Sleep for a random duration to simulate time between taking items
+                if (borekTray.hasItemsLeft() && borekTaken < borekLimit && borekTray.takeItem(getName())) borekTaken++;
+                if (cakeTray.hasItemsLeft() && cakeTaken < cakeLimit && cakeTray.takeItem(getName())) cakeTaken++;
+                if (drinkTray.hasItemsLeft() && drinkTaken < drinkLimit && drinkTray.takeItem(getName())) drinkTaken++;
+                Thread.sleep((long) (Math.random() * 1500));
+            }
         } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
+            e.printStackTrace();
         }
     }
     ```
@@ -168,17 +177,17 @@ The `Waiter` class represents the waiter responsible for refilling the trays. Th
     ```java
     @Override
     public void run() {
-        while (!Thread.currentThread().isInterrupted()) {
-            for (Tray tray : trays) {
-                if (tray.getRemainingItems() < tray.capacity / 2) {
+        try {
+            // Waiter continuously refills trays while not interrupted
+            // Refill each tray and sleep for 500 milliseconds between checks
+            while (!isInterrupted()) {
+                for (Tray tray : trays) {
                     tray.refillItem();
                 }
+                Thread.sleep(500); // Check every half second
             }
-            try {
-                Thread.sleep(500);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
+        } catch (InterruptedException e) {
+            System.out.println("Waiter finished his job.");
         }
     }
     ```
