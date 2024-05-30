@@ -29,14 +29,14 @@ The project includes the following main components:
 
 The project files are organized as follows:
 
-'''
+```bash
   /Java-Party-Simulation
   │
   ├── Tray.java
   ├── Guest.java
   ├── Waiter.java
   └── Main.java
-'''
+```
 
 ## Setup
 
